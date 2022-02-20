@@ -1,0 +1,14 @@
+github:
+  prebuilds:
+    master: true
+    branches: false
+    pullRequests: true
+    pullRequestsFromForks: true
+    addComment: false
+    addBadge: true
+    addLabel: prebuilt-in-gitpod
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
+tasks:
+  - init: 'docker build . --tag build'
