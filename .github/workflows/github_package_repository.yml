@@ -1,15 +1,14 @@
 name: Publish Docker image to GitHub Package Registry
-  
+
 on:
   push:
     branches:
-      - master
+      - 'master'
+    tags:
+      - 'v*'
   pull_request:
     branches:
-      - master
-  workflow_dispatch: {}
-  schedule:
-    - cron: '30 22 * * 3'
+      - 'master'
   
 env:
   REGISTRY: ghcr.io
@@ -30,37 +29,6 @@ jobs:
         id: checkout
         uses: actions/checkout@v2
 
-      - name: "docker: Login to Container Registry"
-        id: docker-login
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "docker: Extract metadata"
-        id: prep
-        run: |
-          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
-
-          # Change all uppercase to lowercase
-          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-          # Strip "v" prefix from tag name
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # Use Docker `latest` tag convention
-          [ "$VERSION" == "master" ] && VERSION=latest
-
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=docker_tag::${IMAGE_ID}:${VERSION}
-
-
       - name: "docker: Extract metadata"
         id: meta
         uses: docker/metadata-action@v3
@@ -70,37 +38,24 @@ jobs:
           flavor: |
             latest=auto
           tags: |
-            type=edge,enable=true,priority=700,prefix=,suffix=,branch=$repo.default_branch
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
 
-      - name: "docker: Build image"
-        id: docker-build
-        uses: docker/build-push-action@v2
+      - name: "docker: Login to Container Registry"
+        id: docker-login
+        uses: docker/login-action@v1
         with:
-          context: .
-          push: false
-          tags: ${{ steps.prep.outputs.docker_tag }}
-          labels: ${{ steps.meta.outputs.labels }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "anchore: Scan the Docker Image"
-        id: anchore-scan
-        uses: anchore/scan-action@v3
-        with:
-          image: ${{ steps.docker-build.outputs.digest }}
-          fail-build: false
-          acs-report-enable: true
-          severity-cutoff: "critical"
-        
-      - name: "anchore: Upload SARIF report"
-        id: anchore-upload
-        uses: github/codeql-action/upload-sarif@v1
-        with:
-          sarif_file: results.sarif
-
-      - name: "docker: Push Docker image [master branch]"
-        id: docker-publish
+      - name: "docker: Build and push"
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          tags: ${{ steps.prep.outputs.docker_tag }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
