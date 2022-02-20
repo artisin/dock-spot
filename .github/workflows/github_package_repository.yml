@@ -44,7 +44,10 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/${{ github.repository }}
-
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=
       - name: "docker: Build image"
         id: docker-build
         uses: docker/build-push-action@v2
