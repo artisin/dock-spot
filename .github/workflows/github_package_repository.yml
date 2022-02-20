@@ -25,7 +25,7 @@ jobs:
       security-events: write
       
     steps:
-    
+
       - name: "actions: Checkout repository"
         id: checkout
         uses: actions/checkout@v2
@@ -37,6 +37,31 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "docker: Extract metadata"
+        id: prep
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          # Strip git ref prefix from version
+          # VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # I changed this so it takes the version from a file on my project
+          VERSION=$(cat version)
+
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          echo ::set-output name=version::${VERSION}
+          echo ::set-output name=docker_tag::${IMAGE_ID}:${VERSION}
+
 
       - name: "docker: Extract metadata"
         id: meta
@@ -55,7 +80,7 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.prep.outputs.docker_tag }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: "anchore: Scan the Docker Image"
@@ -79,5 +104,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.prep.outputs.docker_tag }}
           labels: ${{ steps.meta.outputs.labels }}
