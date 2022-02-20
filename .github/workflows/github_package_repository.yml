@@ -46,8 +46,9 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository }}
           flavor: |
             latest=auto
-            prefix=
-            suffix=
+          tags: |
+            type=edge,enable=true,priority=700,prefix=,suffix=,branch=$repo.default_branch
+
       - name: "docker: Build image"
         id: docker-build
         uses: docker/build-push-action@v2
