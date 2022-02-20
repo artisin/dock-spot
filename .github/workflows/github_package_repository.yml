@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "docker: Extract metadata"
-        id: docker-meta
+        id: meta
         uses: docker/metadata-action@v3
         with:
           images: |
@@ -55,9 +55,9 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ steps.docker-meta.outputs.tags }}
-          labels: ${{ steps.docker-meta.outputs.labels }}
-      
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
       - name: "anchore: Scan the Docker Image"
         id: anchore-scan
         uses: anchore/scan-action@v3
